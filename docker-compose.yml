@@ -1,0 +1,64 @@
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+      - ./home:/usr/share/nginx/html:ro
+    depends_on:
+      - rstudio
+      - vscode
+    networks:
+      - app-net
+
+
+  rstudio:
+    build: ./rstudio
+    env_file: .env
+    environment:
+      - DISABLE_AUTH=true         # auth handled by nginx basic auth
+      - ROOT=true
+      - WWW_ROOT_PATH=/rstudio
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - rstudio-data:/home/rstudio
+      - ./rstudio/test_db_connection.R:/home/rstudio/test_db_connection.R:ro
+    networks:
+      - app-net
+
+  vscode:
+    build: ./vscode
+    env_file: .env
+    environment:
+      - PASSWORD=                  # empty password; auth handled by nginx basic auth
+    command: ["--auth", "none"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - vscode-data:/home/coder
+      - ./vscode/test_db_connection.py:/home/coder/test_db_connection.py:ro
+    networks:
+      - app-net
+
+  ready:
+    image: alpine
+    depends_on:
+      - nginx
+    volumes:
+      - ./nginx/ready.sh:/ready.sh:ro
+    entrypoint: /ready.sh
+    networks:
+      - app-net
+
+  # TODO: in NGSC, replace host.docker.internal with RDS instance endpoint
+
+volumes:
+  rstudio-data:
+  vscode-data:
+
+networks:
+  app-net:
+    driver: bridge

@@ -1,0 +1,30 @@
+#!/bin/sh
+until nc -z nginx 80 2>/dev/null; do
+  sleep 0.5
+done
+
+G='\033[0;32m'
+BG='\033[1;32m'
+DIM='\033[2;32m'
+R='\033[0m'
+
+printf "\n"
+printf "${BG}  ██████╗  █████╗ ████████╗ █████╗ ${R}\n"
+printf "${BG}  ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗${R}\n"
+printf "${BG}  ██║  ██║███████║   ██║   ███████║${R}\n"
+printf "${BG}  ██║  ██║██╔══██║   ██║   ██╔══██║${R}\n"
+printf "${BG}  ██████╔╝██║  ██║   ██║   ██║  ██║${R}\n"
+printf "${BG}  ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝${R}\n"
+printf "${G}  ██████╗  ██████╗ ██████╗ ████████╗ █████╗ ██╗     ${R}\n"
+printf "${G}  ██╔══██╗██╔═══██╗██╔══██╗╚══██╔══╝██╔══██╗██║     ${R}\n"
+printf "${G}  ██████╔╝██║   ██║██████╔╝   ██║   ███████║██║     ${R}\n"
+printf "${G}  ██╔═══╝ ██║   ██║██╔══██╗   ██║   ██╔══██║██║     ${R}\n"
+printf "${G}  ██║     ╚██████╔╝██║  ██║   ██║   ██║  ██║███████╗${R}\n"
+printf "${G}  ╚═╝      ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝${R}\n"
+printf "\n"
+printf "${DIM}  > system online...${R}\n"
+printf "${DIM}  > connection established${R}\n"
+printf "\n"
+printf "${BG}  >> ${R}${G}http://localhost${R}\n"
+printf "${DIM}  >> login: admin / admin${R}\n"
+printf "\n"
