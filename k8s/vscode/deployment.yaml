@@ -25,6 +25,8 @@ spec:
           env:
             - name: DOCKER_USER
               value: "coder"
+            - name: FLUX_TEST
+              value: "hello from flux"
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
