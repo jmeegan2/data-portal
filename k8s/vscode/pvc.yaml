@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vscode-pvc                         # name referenced by the deployment
+  labels:
+    app: vscode
+spec:
+  accessModes:
+    - ReadWriteOnce                        # one pod can read/write at a time
+  resources:
+    requests:
+      storage: 5Gi                         # 5GB of persistent storage

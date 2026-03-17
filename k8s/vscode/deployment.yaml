@@ -1,0 +1,71 @@
+apiVersion: apps/v1                # K8s API version for Deployments
+kind: Deployment                   # manages pods — restarts them if they crash
+metadata:
+  name: vscode                     # name of this deployment
+  labels:
+    app: vscode                    # label for organizing resources
+spec:
+  replicas: 1                      # run one instance of the pod
+  selector:
+    matchLabels:
+      app: vscode                  # tells the deployment which pods it owns
+  template:                        # pod template — defines what each pod looks like
+    metadata:
+      labels:
+        app: vscode                # pods get this label so the Service can find them
+    spec:
+      containers:
+        - name: vscode                             # container name
+          image: data-portal-vscode:latest          # custom image with Python + psycopg2 pre-installed
+          imagePullPolicy: Never                    # use the locally imported image, don't pull from registry
+          ports:
+            - containerPort: 8080                  # code-server listens on this port
+          args: ["--auth", "none"]           # disable password login
+          env:
+            - name: DOCKER_USER
+              value: "coder"
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: dart-db-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: dart-db-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: dart-db-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: dart-db-config
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dart-db-secret
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: vscode-data
+              mountPath: /home/coder               # persist the VS Code user's home directory
+            - name: test-scripts
+              mountPath: /home/coder/test_db_connection.py
+              subPath: test_db_connection.py        # mount single file into the PVC directory
+          resources:
+            requests:                              # minimum resources guaranteed to this container
+              memory: "512Mi"
+              cpu: "250m"
+            limits:                                # maximum resources this container can use
+              memory: "2Gi"
+              cpu: "1"
+      volumes:
+        - name: vscode-data
+          persistentVolumeClaim:
+            claimName: vscode-pvc                  # references the PVC defined in vscode-pvc.yaml
+        - name: test-scripts
+          configMap:
+            name: test-scripts                     # references the ConfigMap with test scripts

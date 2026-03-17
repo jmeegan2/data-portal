@@ -1,0 +1,13 @@
+apiVersion: v1                     # K8s API version for Services
+kind: Service                      # exposes pods to the network — gives them a stable endpoint
+metadata:
+  name: vscode                     # service name — also becomes the internal DNS name
+  labels:
+    app: vscode
+spec:
+  selector:
+    app: vscode                    # routes traffic to pods with this label
+  ports:
+    - port: 8080                   # port the service listens on
+      targetPort: 8080             # port on the container to forward to
+      protocol: TCP

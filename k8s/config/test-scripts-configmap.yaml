@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-scripts
+data:
+  test_db_connection.R: |
+    library(DBI)
+
+    con <- dbConnect(
+      RPostgres::Postgres(),
+      host     = Sys.getenv("DB_HOST"),
+      port     = as.integer(Sys.getenv("DB_PORT")),
+      dbname   = Sys.getenv("DB_NAME"),
+      user     = Sys.getenv("DB_USER"),
+      password = Sys.getenv("DB_PASSWORD")
+    )
+
+    tables <- dbListTables(con)
+    print(tables)
+
+    dbDisconnect(con)
+
+  test_db_connection.py: |
+    import psycopg2, os
+
+    conn = psycopg2.connect(
+        host=os.environ["DB_HOST"],
+        port=os.environ["DB_PORT"],
+        dbname=os.environ["DB_NAME"],
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"]
+    )
+    cur = conn.cursor()
+    cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' LIMIT 20;")
+    for row in cur.fetchall():
+        print(row[0])
+    conn.close()
