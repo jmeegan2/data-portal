@@ -4,7 +4,6 @@ metadata:
   name: vscode                     # name of this deployment
   labels:
     app: vscode                    # label for organizing resources
-    version: "1.1"                 # test label for Flux
 spec:
   replicas: 1                      # run one instance of the pod
   selector:
@@ -25,8 +24,6 @@ spec:
           env:
             - name: DOCKER_USER
               value: "coder"
-            - name: FLUX_TEST
-              value: "hello from flux"
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
