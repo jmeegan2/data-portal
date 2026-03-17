@@ -7,3 +7,4 @@ data:
   DB_PORT: "5551"
   DB_NAME: "dart"
   DB_USER: "dart"
+  RANDOM: "RANDOM"
