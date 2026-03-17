@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: data-portal
+  namespace: flux-system
+spec:
+  interval: 1m                # how often Flux checks for new commits
+  url: https://github.com/jmeegan2/data-portal.git
+  ref:
+    branch: main

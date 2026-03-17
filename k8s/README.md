@@ -104,6 +104,43 @@ Each service has its own PVC:
 
 When a pod restarts, it reattaches to the same PVC — files, projects, and settings are still there.
 
+## Production Tooling (Not Used Yet)
+
+### Kustomize
+
+Right now we deploy by running `kubectl apply -f` on each folder in order. Kustomize eliminates that by letting you define a `kustomization.yaml` that lists all your resources in one place:
+
+```yaml
+# k8s/kustomization.yaml
+resources:
+  - config/dart-db-config.yaml
+  - config/dart-db-secret.yaml
+  - rstudio/deployment.yaml
+  - rstudio/service.yaml
+  - rstudio/pvc.yaml
+  - vscode/deployment.yaml
+  - vscode/service.yaml
+  - vscode/pvc.yaml
+```
+
+Then one command applies everything in the right order: `kubectl apply -k k8s/`
+
+The real power is **overlays** — you keep a `base/` folder with your shared manifests, then create `overlays/dev/` and `overlays/prod/` that patch in environment-specific differences (different passwords, bigger PVCs, more replicas) without duplicating YAML. Kustomize is built into `kubectl`, so there's nothing extra to install.
+
+### Flux
+
+Flux is **GitOps for Kubernetes**. Right now our workflow is: edit YAML → `kubectl apply`. Flux automates that:
+
+1. Flux watches your Git repo
+2. You push a change to a branch
+3. Flux detects the change and applies it to the cluster automatically
+
+No one runs `kubectl apply` manually. The Git repo becomes the single source of truth — whatever is in the repo is what's running in the cluster. If someone manually changes something in the cluster, Flux reverts it to match Git.
+
+Flux pairs naturally with Kustomize — Flux reads your `kustomization.yaml` to know what to apply, and uses overlays to handle dev vs prod differences.
+
+**The workflow becomes:** push code → Flux picks it up → cluster updates itself. No manual `kubectl` commands, no SSH-ing into anything, no "did someone forget to apply that change."
+
 ## Applying Changes
 
 ConfigMap and Secret must exist before the Deployments that reference them. Order matters:

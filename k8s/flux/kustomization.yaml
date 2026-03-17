@@ -1,0 +1,13 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: data-portal
+  namespace: flux-system
+spec:
+  interval: 1m                # how often Flux re-applies
+  sourceRef:
+    kind: GitRepository
+    name: data-portal          # points to git-source.yaml
+  path: ./k8s                  # the folder in the repo with our kustomization.yaml
+  prune: true                  # removes resources from the cluster if you delete them from git
+  targetNamespace: default     # apply resources to the default namespace
