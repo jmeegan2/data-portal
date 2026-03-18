@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: rstudio                        # container name
-          image: data-portal-rstudio:latest     # custom image with RPostgres pre-installed
-          imagePullPolicy: Never               # use the locally imported image, don't pull from registry
+          image: jmeegan607/data-portal-rstudio:latest  # custom image with RPostgres pre-installed
+          imagePullPolicy: IfNotPresent                # pull from Docker Hub if not already on node
           ports:
             - containerPort: 8787              # RStudio listens on this port
           env:

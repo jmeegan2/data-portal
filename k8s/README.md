@@ -35,7 +35,7 @@ k8s/
   nginx/
     default.conf           # nginx server config — reverse proxy + basic auth
     deployment.yaml        # Deployment — runs the nginx pod
-    service.yaml           # Service — ClusterIP on port 80 (ALB target)
+    service.yaml           # Service — ClusterIP on port 8080 (ALB target)
     htpasswd-secret.yaml   # Secret — basic auth credentials
   rstudio/
     deployment.yaml        # Deployment — runs the RStudio pod
@@ -54,7 +54,7 @@ k8s/
 ```
 User (browser)
   → AWS ALB (ingress / TLS termination)
-    → nginx Service (ClusterIP:80)
+    → nginx Service (ClusterIP:8080)
       → nginx Pod
         → basic auth check (.htpasswd)
         → /            → serves landing page (static/index.html)
@@ -160,7 +160,23 @@ In production, the AWS ALB routes traffic to the nginx Service automatically.
 For local development, port-forward to nginx:
 
 ```bash
-kubectl port-forward svc/nginx 8080:80
+kubectl port-forward svc/nginx 8080:8080
 ```
 
 Then open `localhost:8080` in your browser. Log in with the basic auth credentials, and use the landing page to navigate to RStudio or VS Code.
+
+## Production Readiness
+
+### Will break:
+
+1. **`DB_HOST=host.docker.internal`** — this is a Docker Desktop hack to reach your Mac's localhost. In prod this doesn't exist. You'll need the actual database hostname/IP.
+
+### Security issues:
+
+2. **Plaintext secrets in git** — `DB_PASSWORD: "DART"` and the htpasswd secret are committed in plain text. In prod, use AWS Secrets Manager, sealed-secrets, or external-secrets operator. Anyone with repo access can see these.
+3. **`admin`/`admin` credentials** — obvious, but worth calling out.
+4. **`ROOT=true` on RStudio** — gives users root inside the container. Fine for dev, risky in prod.
+
+### What's fine:
+
+The nginx config, services, PVCs, kustomize structure, and Flux setup are all standard and will work in prod without changes.
