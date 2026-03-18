@@ -14,15 +14,24 @@ spec:
       labels:
         app: rstudio               # pods get this label so the Service can find them
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
       containers:
         - name: rstudio                        # container name
           image: jmeegan607/data-portal-rstudio:latest  # custom image with RPostgres pre-installed
           imagePullPolicy: IfNotPresent                # pull from Docker Hub if not already on node
+          command: ["rserver"]
+          args:
+            - "--auth-none=1"
+            - "--server-user=rstudio"
+            - "--www-port=8787"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
           ports:
             - containerPort: 8787              # RStudio listens on this port
           env:
-            - name: DISABLE_AUTH
-              value: "true"                    # skip RStudio login — auth handled externally
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
@@ -54,6 +63,10 @@ spec:
             - name: test-scripts
               mountPath: /home/rstudio/test_db_connection.R
               subPath: test_db_connection.R    # mount single file into the PVC directory
+            - name: run
+              mountPath: /run                  # rserver needs writable /run
+            - name: rstudio-server
+              mountPath: /var/lib/rstudio-server  # rserver state directory
           resources:
             requests:                          # minimum resources guaranteed to this container
               memory: "512Mi"
@@ -68,3 +81,7 @@ spec:
         - name: test-scripts
           configMap:
             name: test-scripts                 # references the ConfigMap with test scripts
+        - name: run
+          emptyDir: {}
+        - name: rstudio-server
+          emptyDir: {}
