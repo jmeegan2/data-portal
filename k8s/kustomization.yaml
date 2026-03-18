@@ -8,10 +8,19 @@ configMapGenerator:
       - DB_PORT=5551
       - DB_NAME=dart
       - DB_USER=dart
+  - name: nginx-config
+    files:
+      - default.conf=nginx/default.conf
+  - name: portal-html
+    files:
+      - index.html=../static/index.html
 
 resources:
   - config/dart-db-secret.yaml
   - config/test-scripts-configmap.yaml
+  - nginx/deployment.yaml
+  - nginx/service.yaml
+  - nginx/htpasswd-secret.yaml
   - rstudio/pvc.yaml
   - rstudio/deployment.yaml
   - rstudio/service.yaml

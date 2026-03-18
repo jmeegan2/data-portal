@@ -27,10 +27,16 @@ A manifest is a YAML file that describes a Kubernetes resource — what kind it 
 
 ```
 k8s/
+  kustomization.yaml       # Kustomize entrypoint — lists all resources + configMapGenerators
   README.md
   config/
-    dart-db-config.yaml    # ConfigMap — DB connection info (host, port, name, user)
     dart-db-secret.yaml    # Secret — DB password
+    test-scripts-configmap.yaml
+  nginx/
+    default.conf           # nginx server config — reverse proxy + basic auth
+    deployment.yaml        # Deployment — runs the nginx pod
+    service.yaml           # Service — ClusterIP on port 80 (ALB target)
+    htpasswd-secret.yaml   # Secret — basic auth credentials
   rstudio/
     deployment.yaml        # Deployment — runs the RStudio pod
     service.yaml           # Service — stable network endpoint for RStudio
@@ -43,35 +49,39 @@ k8s/
 
 ## How It All Fits Together
 
-### The Flow (RStudio example — VS Code is identical on port 8080)
+### The Flow
 
 ```
-You (localhost:8787)
-  → kubectl port-forward (or Shift+F in k9s)
-    → Service (rstudio:8787)
-      → Pod (rstudio container:8787)
-        → RStudio Server
-          → reads DB_HOST, DB_PASSWORD, etc. from environment
-            → connects to DART database
+User (browser)
+  → AWS ALB (ingress / TLS termination)
+    → nginx Service (ClusterIP:80)
+      → nginx Pod
+        → basic auth check (.htpasswd)
+        → /            → serves landing page (static/index.html)
+        → /vscode/     → proxy_pass → vscode Service:8080 → VS Code pod
+        → /rstudio/    → proxy_pass → rstudio Service:8787 → RStudio pod
+                          → both read DB_HOST, DB_PASSWORD, etc. from environment
+                            → connect to DART database
 ```
 
-1. The **Deployment** creates and manages the pod running RStudio/VS Code
-2. The **Service** gives that pod a stable network identity so you don't need to know the pod's name
-3. Port-forwarding bridges your local machine to the Service
-4. The pod gets its database connection info from the **ConfigMap** and **Secret** via environment variables
-5. The **PVC** keeps user files alive across pod restarts
+1. The **AWS ALB** handles ingress and routes traffic to the **nginx** Service
+2. **nginx** enforces basic auth, serves the landing page at `/`, and reverse proxies `/vscode/` and `/rstudio/` to their respective Services
+3. Each **Deployment** creates and manages the pod running its app (nginx, RStudio, VS Code)
+4. Each **Service** gives a pod a stable network identity so nginx can proxy to them by name
+5. The app pods get database connection info from the **ConfigMap** (via `configMapGenerator`) and **Secret** via environment variables
+6. **PVCs** keep user files alive across pod restarts
 
-### Environment Variables: Docker Compose vs K8s
+### Environment Variables
 
-In Docker Compose, the `.env` file fed variables into containers via `env_file: .env`. Kubernetes doesn't have `env_file` — it uses ConfigMaps and Secrets instead.
+Database config is managed through Kustomize's `configMapGenerator` (inline literals in `kustomization.yaml`) and a Secret:
 
-| Docker Compose (.env)  | K8s Resource | File                          | Why                          |
-|------------------------|--------------|-------------------------------|------------------------------|
-| `DB_HOST`              | ConfigMap    | `config/dart-db-config.yaml`  | Not sensitive                |
-| `DB_PORT`              | ConfigMap    | `config/dart-db-config.yaml`  | Not sensitive                |
-| `DB_NAME`              | ConfigMap    | `config/dart-db-config.yaml`  | Not sensitive                |
-| `DB_USER`              | ConfigMap    | `config/dart-db-config.yaml`  | Not sensitive                |
-| `DB_PASSWORD`          | Secret       | `config/dart-db-secret.yaml`  | Credential — keep locked down|
+| Variable       | K8s Resource       | Source                               | Why                          |
+|----------------|--------------------|--------------------------------------|------------------------------|
+| `DB_HOST`      | ConfigMap (generated) | `kustomization.yaml` → literals   | Not sensitive                |
+| `DB_PORT`      | ConfigMap (generated) | `kustomization.yaml` → literals   | Not sensitive                |
+| `DB_NAME`      | ConfigMap (generated) | `kustomization.yaml` → literals   | Not sensitive                |
+| `DB_USER`      | ConfigMap (generated) | `kustomization.yaml` → literals   | Not sensitive                |
+| `DB_PASSWORD`  | Secret             | `config/dart-db-secret.yaml`         | Credential — keep locked down|
 
 The Deployments reference these via `valueFrom` in the `env:` block:
 
@@ -104,54 +114,36 @@ Each service has its own PVC:
 
 When a pod restarts, it reattaches to the same PVC — files, projects, and settings are still there.
 
-## Production Tooling (Not Used Yet)
+### nginx — Reverse Proxy & Basic Auth
+
+nginx sits between the ALB and the application pods. It handles three things:
+
+1. **Basic auth** — all routes require a username/password from `.htpasswd` (stored in `nginx-htpasswd` Secret)
+2. **Landing page** — serves `static/index.html` at `/` with links to each environment
+3. **Reverse proxy** — forwards `/vscode/` and `/rstudio/` to the backend Services, with WebSocket support (`Upgrade` headers) and a 1-hour read timeout so idle sessions don't get dropped
+
+The nginx config and landing page HTML are both managed as `configMapGenerator` entries in `kustomization.yaml` — no separate ConfigMap YAML files needed.
 
 ### Kustomize
 
-Right now we deploy by running `kubectl apply -f` on each folder in order. Kustomize eliminates that by letting you define a `kustomization.yaml` that lists all your resources in one place:
+All resources are declared in `kustomization.yaml` and applied with one command: `kubectl apply -k k8s/`
 
-```yaml
-# k8s/kustomization.yaml
-resources:
-  - config/dart-db-config.yaml
-  - config/dart-db-secret.yaml
-  - rstudio/deployment.yaml
-  - rstudio/service.yaml
-  - rstudio/pvc.yaml
-  - vscode/deployment.yaml
-  - vscode/service.yaml
-  - vscode/pvc.yaml
-```
-
-Then one command applies everything in the right order: `kubectl apply -k k8s/`
-
-The real power is **overlays** — you keep a `base/` folder with your shared manifests, then create `overlays/dev/` and `overlays/prod/` that patch in environment-specific differences (different passwords, bigger PVCs, more replicas) without duplicating YAML. Kustomize is built into `kubectl`, so there's nothing extra to install.
+Kustomize handles:
+- **`configMapGenerator`** — generates ConfigMaps from inline literals (DB config) or files (nginx config, portal HTML). Appends a hash suffix to names so config changes trigger pod restarts automatically.
+- **`resources`** — references all Deployment, Service, PVC, and Secret manifests
 
 ### Flux
 
-Flux is **GitOps for Kubernetes**. Right now our workflow is: edit YAML → `kubectl apply`. Flux automates that:
+Flux is **GitOps for Kubernetes**. It watches the Git repo and automatically applies changes to the cluster when you push. The Git repo is the single source of truth — if someone manually changes something in the cluster, Flux reverts it to match Git.
 
-1. Flux watches your Git repo
-2. You push a change to a branch
-3. Flux detects the change and applies it to the cluster automatically
-
-No one runs `kubectl apply` manually. The Git repo becomes the single source of truth — whatever is in the repo is what's running in the cluster. If someone manually changes something in the cluster, Flux reverts it to match Git.
-
-Flux pairs naturally with Kustomize — Flux reads your `kustomization.yaml` to know what to apply, and uses overlays to handle dev vs prod differences.
-
-**The workflow becomes:** push code → Flux picks it up → cluster updates itself. No manual `kubectl` commands, no SSH-ing into anything, no "did someone forget to apply that change."
+**The workflow:** push code → Flux picks it up → cluster updates itself.
 
 ## Applying Changes
 
-ConfigMap and Secret must exist before the Deployments that reference them. Order matters:
+With Kustomize, one command applies everything in the right order:
 
 ```bash
-# 1. Apply config (ConfigMap + Secret)
-kubectl apply -f k8s/config/
-
-# 2. Apply services (RStudio + VS Code)
-kubectl apply -f k8s/rstudio/
-kubectl apply -f k8s/vscode/
+kubectl apply -k k8s/
 ```
 
 ### Verify env vars are in the pods
@@ -161,15 +153,14 @@ kubectl exec deploy/rstudio -- env | grep DB_
 kubectl exec deploy/vscode -- env | grep DB_
 ```
 
-### Access the services
+### Access the portal
 
-Using k9s: navigate to Services, select one, press `Shift+F` to port-forward.
+In production, the AWS ALB routes traffic to the nginx Service automatically.
 
-Or from the command line:
+For local development, port-forward to nginx:
 
 ```bash
-kubectl port-forward svc/rstudio 8787:8787 &
-kubectl port-forward svc/vscode 8080:8080
+kubectl port-forward svc/nginx 8080:80
 ```
 
-Then open `localhost:8787` (RStudio) or `localhost:8080` (VS Code) in your browser.
+Then open `localhost:8080` in your browser. Log in with the basic auth credentials, and use the landing page to navigate to RStudio or VS Code.
