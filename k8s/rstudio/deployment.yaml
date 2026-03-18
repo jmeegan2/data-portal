@@ -23,8 +23,6 @@ spec:
           env:
             - name: DISABLE_AUTH
               value: "true"                    # skip RStudio login — auth handled externally
-            - name: ROOT
-              value: "true"                    # give rstudio user root access inside container
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:

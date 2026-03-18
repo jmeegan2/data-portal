@@ -18,6 +18,8 @@ spec:
         - name: vscode                             # container name
           image: jmeegan607/data-portal-vscode:latest  # custom image with Python + psycopg2 pre-installed
           imagePullPolicy: IfNotPresent              # pull from Docker Hub if not already on node
+          securityContext:
+            runAsNonRoot: true
           ports:
             - containerPort: 8080                  # code-server listens on this port
           args: ["--auth", "none"]           # disable password login

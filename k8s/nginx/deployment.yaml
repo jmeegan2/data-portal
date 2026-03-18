@@ -16,7 +16,10 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: nginx:1.27-alpine
+          image: nginxinc/nginx-unprivileged:1.27-alpine
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
           ports:
             - containerPort: 8080
           volumeMounts:
