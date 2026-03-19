@@ -1,6 +1,19 @@
 FROM rocker/rstudio:latest
 
 RUN apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y libpq-dev && \
     R -e "install.packages('RPostgres', repos='https://cloud.r-project.org')" && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Fix permissions so rstudio user (UID 1000) can run rserver without root
+RUN chown -R rstudio:rstudio /etc/rstudio && \
+    chmod 664 /etc/rstudio/database.conf && \
+    mkdir -p /var/lib/rstudio-server /var/run/rstudio-server && \
+    chown -R rstudio:rstudio /var/lib/rstudio-server /var/run/rstudio-server
+
+USER rstudio
+
+EXPOSE 8787
+
+CMD ["rserver", "--auth-none=0", "--auth-pam-helper-path=pam-helper", "--server-user=rstudio", "--server-daemonize=0"]
