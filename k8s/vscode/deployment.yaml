@@ -1,31 +1,45 @@
-apiVersion: apps/v1                # K8s API version for Deployments
-kind: Deployment                   # manages pods — restarts them if they crash
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: vscode                     # name of this deployment
+  name: vscode
   labels:
-    app: vscode                    # label for organizing resources
+    app: vscode
 spec:
-  replicas: 1                      # run one instance of the pod
+  replicas: 1
   selector:
     matchLabels:
-      app: vscode                  # tells the deployment which pods it owns
-  template:                        # pod template — defines what each pod looks like
+      app: vscode
+  template:
     metadata:
       labels:
-        app: vscode                # pods get this label so the Service can find them
+        app: vscode
     spec:
+      securityContext:
+        runAsUser: 911
+        runAsGroup: 1001
+      initContainers:
+        - name: fix-permissions
+          image: jmeegan607/data-portal-vscode:latest
+          command: ["sh", "-c", "chown -R 911:1001 /config"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: vscode-data
+              mountPath: /config
       containers:
-        - name: vscode                             # container name
-          image: jmeegan607/data-portal-vscode:latest  # custom image with Python + psycopg2 pre-installed
-          imagePullPolicy: IfNotPresent              # pull from Docker Hub if not already on node
+        - name: vscode
+          image: jmeegan607/data-portal-vscode:latest
+          imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: true
+            allowPrivilegeEscalation: false
           ports:
-            - containerPort: 8080                  # code-server listens on this port
-          args: ["--auth", "none"]           # disable password login
+            - containerPort: 8080
+          command: ["/app/code-server/bin/code-server"]
+          args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080", "/config"]
           env:
-            - name: DOCKER_USER
-              value: "coder"
+            - name: HOME
+              value: "/config"
             - name: DB_HOST
               valueFrom:
                 configMapKeyRef:
@@ -53,21 +67,21 @@ spec:
                   key: DB_PASSWORD
           volumeMounts:
             - name: vscode-data
-              mountPath: /home/coder               # persist the VS Code user's home directory
+              mountPath: /config
             - name: test-scripts
-              mountPath: /home/coder/test_db_connection.py
-              subPath: test_db_connection.py        # mount single file into the PVC directory
+              mountPath: /config/test_db_connection.py
+              subPath: test_db_connection.py
           resources:
-            requests:                              # minimum resources guaranteed to this container
+            requests:
               memory: "512Mi"
               cpu: "250m"
-            limits:                                # maximum resources this container can use
+            limits:
               memory: "2Gi"
               cpu: "1"
       volumes:
         - name: vscode-data
           persistentVolumeClaim:
-            claimName: vscode-pvc                  # references the PVC defined in vscode-pvc.yaml
+            claimName: vscode-pvc
         - name: test-scripts
           configMap:
-            name: test-scripts                     # references the ConfigMap with test scripts
+            name: test-scripts
