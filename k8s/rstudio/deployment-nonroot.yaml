@@ -18,16 +18,20 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
       containers:
+
+
+      # u can prob uninstall that linux-something cve since its a build time thing 
+
         - name: rstudio
           image: jmeegan607/data-portal-rstudio:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8787
           command: ["/bin/bash", "-c"]
-          args:
+          args: #consider making this a init container sequence thing
             - |
               env | grep -E '^(DB_|USER|PASSWORD)' >> /usr/local/lib/R/etc/Renviron.site 2>/dev/null || true
-              exec rserver --auth-none=1 --server-user=rstudio --server-daemonize=0
+              exec rserver --auth-none=1 --server-user=rstudio --server-daemonize=0 
           env:
             - name: USER
               value: rstudio
@@ -72,13 +76,6 @@ spec:
               mountPath: /var/lib/rstudio-server
             - name: tmp
               mountPath: /tmp
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "250m"
-            limits:
-              memory: "2Gi"
-              cpu: "1"
       volumes:
         - name: rstudio-data
           persistentVolumeClaim:
@@ -87,8 +84,8 @@ spec:
           configMap:
             name: test-scripts
         - name: run
-          emptyDir: {}
+          emptyDir: {}          # writable /run for rserver PID files
         - name: var-lib-rstudio-server
-          emptyDir: {}
+          emptyDir: {}          # writable dir for session state
         - name: tmp
-          emptyDir: {}
+          emptyDir: {}          # writable /tmp for R session temp files

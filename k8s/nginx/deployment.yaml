@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: nginxinc/nginx-unprivileged:1.27-alpine
+          image: jmeegan607/data-portal-nginx:latest
+          imagePullPolicy: IfNotPresent #look into maybe changing this
           securityContext:
             runAsNonRoot: true
             runAsUser: 101

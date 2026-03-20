@@ -22,7 +22,7 @@ resources:
   - nginx/service.yaml
   - nginx/htpasswd-secret.yaml
   - rstudio/pvc.yaml
-  - rstudio/deployment.yaml
+  - rstudio/deployment-nonroot.yaml
   - rstudio/service.yaml
   - vscode/pvc.yaml
   - vscode/deployment.yaml
