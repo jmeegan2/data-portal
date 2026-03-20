@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rstudio
+  labels:
+    app: rstudio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rstudio
+  template:
+    metadata:
+      labels:
+        app: rstudio
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: rstudio
+          image: jmeegan607/data-portal-rstudio:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8787
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              env | grep -E '^(DB_|USER|PASSWORD)' >> /usr/local/lib/R/etc/Renviron.site 2>/dev/null || true
+              exec rserver --auth-none=0 --auth-pam-helper-path=pam-helper --server-user=rstudio --server-daemonize=0
+          env:
+            - name: USER
+              value: rstudio
+            - name: PASSWORD
+              value: rstudio                   # dummy password — auth handled externally by nginx
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: dart-db-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: dart-db-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: dart-db-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: dart-db-config
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dart-db-secret
+                  key: DB_PASSWORD
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: rstudio-data
+              mountPath: /home/rstudio
+            - name: test-scripts
+              mountPath: /home/rstudio/test_db_connection.R
+              subPath: test_db_connection.R
+            - name: run
+              mountPath: /run
+            - name: var-lib-rstudio-server
+              mountPath: /var/lib/rstudio-server
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+      volumes:
+        - name: rstudio-data
+          persistentVolumeClaim:
+            claimName: rstudio-pvc
+        - name: test-scripts
+          configMap:
+            name: test-scripts
+        - name: run
+          emptyDir: {}
+        - name: var-lib-rstudio-server
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

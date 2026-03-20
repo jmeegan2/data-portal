@@ -9,6 +9,7 @@ RUN apt-get update && \
 # Fix permissions so rstudio user (UID 1000) can run rserver without root
 RUN chown -R rstudio:rstudio /etc/rstudio && \
     chmod 664 /etc/rstudio/database.conf && \
+    chmod 666 /usr/local/lib/R/etc/Renviron.site && \
     mkdir -p /var/lib/rstudio-server /var/run/rstudio-server && \
     chown -R rstudio:rstudio /var/lib/rstudio-server /var/run/rstudio-server
 
