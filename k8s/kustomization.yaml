@@ -13,7 +13,7 @@ configMapGenerator:
       - default.conf=nginx/default.conf
   - name: portal-html
     files:
-      - index.html=../static/index.html
+      - index.html=nginx/index.html
 
 resources:
   - config/dart-db-secret.yaml
@@ -22,7 +22,7 @@ resources:
   - nginx/service.yaml
   - nginx/htpasswd-secret.yaml
   - rstudio/pvc.yaml
-  - rstudio/deployment-nonroot.yaml
+  - rstudio/deployment.yaml
   - rstudio/service.yaml
   - vscode/pvc.yaml
   - vscode/deployment.yaml

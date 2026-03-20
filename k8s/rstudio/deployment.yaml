@@ -1,70 +1,78 @@
-apiVersion: apps/v1                # K8s API version for Deployments
-kind: Deployment                   # manages pods — restarts them if they crash
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: rstudio                    # name of this deployment
+  name: rstudio
   labels:
-    app: rstudio                   # label for organizing resources
+    app: rstudio
 spec:
-  replicas: 1                      # run one instance of the pod
+  replicas: 1
   selector:
     matchLabels:
-      app: rstudio                 # tells the deployment which pods it owns
-  template:                        # pod template — defines what each pod looks like
+      app: rstudio
+  template:
     metadata:
       labels:
-        app: rstudio               # pods get this label so the Service can find them
+        app: rstudio
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
       containers:
-        - name: rstudio                        # container name
-          image: jmeegan607/data-portal-rstudio:latest  # custom image with RPostgres pre-installed
-          imagePullPolicy: IfNotPresent                # pull from Docker Hub if not already on node
+        - name: rstudio
+          image: jmeegan607/data-portal-rstudio:latest
+          imagePullPolicy: Always
           ports:
-            - containerPort: 8787              # RStudio listens on this port
+            - containerPort: 8787
+          # Skips rocker's /init entrypoint (requires root) and runs rserver directly.
+          # Line 1: writes DB env vars into R's config so R sessions can read them.
+          # Line 2: starts rserver as non-root with no auth (nginx handles auth).
+          # Init container won't work here — Renviron.site must be written in the
+          # same filesystem where rserver runs (emptyDir would hide existing R configs).
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              env | grep '^DB_' >> /usr/local/lib/R/etc/Renviron.site
+              exec rserver --auth-none=1 --server-user=rstudio --server-daemonize=0
           env:
-            - name: DISABLE_AUTH
-              value: "true"                    # skip RStudio login — auth handled externally
-            - name: DB_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: dart-db-config
-                  key: DB_HOST
-            - name: DB_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: dart-db-config
-                  key: DB_PORT
-            - name: DB_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: dart-db-config
-                  key: DB_NAME
-            - name: DB_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: dart-db-config
-                  key: DB_USER
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: dart-db-secret
-                  key: DB_PASSWORD
+            - name: USER
+              value: rstudio
+            - name: PASSWORD
+              value: rstudio
+          envFrom:
+            - configMapRef:
+                name: dart-db-config
+            - secretRef:
+                name: dart-db-secret
+          securityContext:
+            allowPrivilegeEscalation: false
           volumeMounts:
             - name: rstudio-data
-              mountPath: /home/rstudio         # persist the RStudio user's home directory
+              mountPath: /home/rstudio
             - name: test-scripts
               mountPath: /home/rstudio/test_db_connection.R
-              subPath: test_db_connection.R    # mount single file into the PVC directory
-          resources:
-            requests:                          # minimum resources guaranteed to this container
-              memory: "512Mi"
-              cpu: "250m"
-            limits:                            # maximum resources this container can use
-              memory: "2Gi"
-              cpu: "1"
+              subPath: test_db_connection.R
+            - name: run
+              mountPath: /run
+            - name: var-lib-rstudio-server
+              mountPath: /var/lib/rstudio-server
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: rstudio-data
           persistentVolumeClaim:
-            claimName: rstudio-pvc             # references the PVC defined in rstudio-pvc.yaml
+            claimName: rstudio-pvc
         - name: test-scripts
           configMap:
-            name: test-scripts                 # references the ConfigMap with test scripts
+            name: test-scripts
+        # Required: non-root rstudio user can't write to these dirs without emptyDir mounts.
+        # /run — rserver PID files and socket
+        # /var/lib/rstudio-server — SQLite session state DB
+        # /tmp — R session temp files (Rtmp*)
+        # Removing these will crash rserver with permission denied errors.
+        - name: run
+          emptyDir: {}
+        - name: var-lib-rstudio-server
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
