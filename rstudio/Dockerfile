@@ -1,4 +1,4 @@
-FROM rocker/rstudio:latest
+FROM rocker/rstudio:4.5.3
 
 RUN apt-get update && \
     apt-get upgrade -y && \
