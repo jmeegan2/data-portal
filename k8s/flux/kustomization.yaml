@@ -10,4 +10,5 @@ spec:
     name: data-portal          # points to git-source.yaml
   path: ./k8s                  # the folder in the repo with our kustomization.yaml
   prune: true                  # removes resources from the cluster if you delete them from git
-  targetNamespace: default     # apply resources to the default namespace
+  targetNamespace: data-portal  # dedicated namespace for the data portal
+

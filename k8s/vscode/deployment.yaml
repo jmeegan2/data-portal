@@ -29,7 +29,7 @@ spec:
       containers:
         - name: vscode
           image: jmeegan607/data-portal-vscode:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           securityContext:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
@@ -40,44 +40,17 @@ spec:
           env:
             - name: HOME
               value: "/config"
-            - name: DB_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: dart-db-config
-                  key: DB_HOST
-            - name: DB_PORT
-              valueFrom:
-                configMapKeyRef:
-                  name: dart-db-config
-                  key: DB_PORT
-            - name: DB_NAME
-              valueFrom:
-                configMapKeyRef:
-                  name: dart-db-config
-                  key: DB_NAME
-            - name: DB_USER
-              valueFrom:
-                configMapKeyRef:
-                  name: dart-db-config
-                  key: DB_USER
-            - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: dart-db-secret
-                  key: DB_PASSWORD
+          envFrom:
+            - configMapRef:
+                name: dart-db-config
+            - secretRef:
+                name: dart-db-secret
           volumeMounts:
             - name: vscode-data
               mountPath: /config
             - name: test-scripts
               mountPath: /config/test_db_connection.py
               subPath: test_db_connection.py
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "250m"
-            limits:
-              memory: "2Gi"
-              cpu: "1"
       volumes:
         - name: vscode-data
           persistentVolumeClaim:

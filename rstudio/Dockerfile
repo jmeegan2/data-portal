@@ -4,6 +4,7 @@ RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y libpq-dev && \
     R -e "install.packages('RPostgres', repos='https://cloud.r-project.org')" && \
+    dpkg --force-depends --purge linux-libc-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Fix permissions so rstudio user (UID 1000) can run rserver without root
