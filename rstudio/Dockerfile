@@ -14,7 +14,3 @@ RUN chown -R rstudio:rstudio /etc/rstudio && \
     chown -R rstudio:rstudio /var/lib/rstudio-server /var/run/rstudio-server
 
 USER rstudio
-
-EXPOSE 8787
-
-CMD ["rserver", "--auth-none=0", "--auth-pam-helper-path=pam-helper", "--server-user=rstudio", "--server-daemonize=0"]
