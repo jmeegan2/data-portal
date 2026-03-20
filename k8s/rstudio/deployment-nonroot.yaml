@@ -27,7 +27,7 @@ spec:
           args:
             - |
               env | grep -E '^(DB_|USER|PASSWORD)' >> /usr/local/lib/R/etc/Renviron.site 2>/dev/null || true
-              exec rserver --auth-none=0 --auth-pam-helper-path=pam-helper --server-user=rstudio --server-daemonize=0
+              exec rserver --auth-none=1 --server-user=rstudio --server-daemonize=0
           env:
             - name: USER
               value: rstudio
