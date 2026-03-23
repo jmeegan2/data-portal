@@ -1,11 +1,11 @@
-apiVersion: apps/v1
+apiVersion: apps/v1                        # standard API for Deployments
 kind: Deployment
 metadata:
   name: vscode
   labels:
     app: vscode
 spec:
-  replicas: 1
+  replicas: 1                              # one VS Code instance
   selector:
     matchLabels:
       app: vscode
@@ -15,14 +15,14 @@ spec:
         app: vscode
     spec:
       securityContext:
-        runAsUser: 911
+        runAsUser: 911                     # UID 911 = abc user in linuxserver images
         runAsGroup: 1001
       initContainers:
-        - name: fix-permissions
+        - name: fix-permissions            # runs once before the main container starts
           image: jmeegan607/data-portal-vscode:latest
-          command: ["sh", "-c", "chown -R 911:1001 /config"]
+          command: ["sh", "-c", "chown -R 911:1001 /config"]  # fix ownership on persistent volume
           securityContext:
-            runAsUser: 0
+            runAsUser: 0                   # needs root to chown (only runs at startup)
           volumeMounts:
             - name: vscode-data
               mountPath: /config
@@ -34,25 +34,25 @@ spec:
             runAsNonRoot: true
             allowPrivilegeEscalation: false
           ports:
-            - containerPort: 8080
-          command: ["/app/code-server/bin/code-server"]
-          args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080", "/config"]
+            - containerPort: 8080          # code-server listens here
+          command: ["/app/code-server/bin/code-server"]  # bypass linuxserver entrypoint
+          args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080", "/config"]  # no auth (nginx handles it), serve /config as workspace
           env:
             - name: HOME
-              value: "/config"
+              value: "/config"             # code-server stores settings/extensions here
           envFrom:
             - configMapRef:
-                name: dart-db-config
+                name: dart-db-config       # DB_HOST, DB_PORT, DB_NAME, DB_USER
             - secretRef:
-                name: dart-db-secret
+                name: dart-db-secret       # DB_PASSWORD
           volumeMounts:
-            - name: vscode-data
+            - name: vscode-data            # persistent storage for user files and settings
               mountPath: /config
-            - name: test-scripts
+            - name: test-scripts           # pre-loaded DB connection test script
               mountPath: /config/test_db_connection.py
               subPath: test_db_connection.py
       volumes:
-        - name: vscode-data
+        - name: vscode-data                # persists across pod restarts
           persistentVolumeClaim:
             claimName: vscode-pvc
         - name: test-scripts

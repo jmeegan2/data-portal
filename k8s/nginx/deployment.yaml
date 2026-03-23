@@ -1,47 +1,47 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: apps/v1                        # standard API for Deployments
+kind: Deployment                           # manages pod lifecycle (restarts, rollouts, etc.)
 metadata:
   name: nginx
   labels:
-    app: nginx
+    app: nginx                             # label used by Services to find this deployment
 spec:
-  replicas: 1
+  replicas: 1                              # run one instance of this pod
   selector:
     matchLabels:
-      app: nginx
+      app: nginx                           # this deployment manages pods with label app=nginx
   template:
     metadata:
       labels:
-        app: nginx
+        app: nginx                         # every pod gets this label (must match selector above)
     spec:
       containers:
         - name: nginx
           image: jmeegan607/data-portal-nginx:latest
-          imagePullPolicy: Always
+          imagePullPolicy: Always           # always pull latest, never use cached image
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 101
-            allowPrivilegeEscalation: false
+            runAsNonRoot: true              # refuse to start if container tries to run as root
+            runAsUser: 101                  # UID 101 = default nginx user
+            allowPrivilegeEscalation: false # process can't gain more privileges than it started with
           ports:
-            - containerPort: 8080
+            - containerPort: 8080          # port nginx listens on inside the cluster
           volumeMounts:
-            - name: nginx-config
+            - name: nginx-config           # reverse proxy config (proxy routes, WebSocket headers)
               mountPath: /etc/nginx/conf.d/default.conf
               subPath: default.conf
-            - name: portal-html
+            - name: portal-html            # landing page HTML
               mountPath: /usr/share/nginx/html/index.html
               subPath: index.html
-            - name: htpasswd
+            - name: htpasswd               # basic auth credentials file
               mountPath: /etc/nginx/.htpasswd
               subPath: .htpasswd
-              readOnly: true
+              readOnly: true               # no reason for nginx to write to this
       volumes:
-        - name: nginx-config
+        - name: nginx-config               # sourced from ConfigMap (see kustomization.yaml)
           configMap:
             name: nginx-config
-        - name: portal-html
+        - name: portal-html               # sourced from ConfigMap (see kustomization.yaml)
           configMap:
             name: portal-html
-        - name: htpasswd
+        - name: htpasswd                   # sourced from Secret (encrypted at rest, unlike ConfigMaps)
           secret:
             secretName: nginx-htpasswd

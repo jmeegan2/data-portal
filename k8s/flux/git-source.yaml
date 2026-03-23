@@ -1,10 +1,10 @@
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: GitRepository
+apiVersion: source.toolkit.fluxcd.io/v1    # Flux Source Controller API
+kind: GitRepository                        # tells Flux where to pull manifests from
 metadata:
   name: data-portal
-  namespace: flux-system
+  namespace: flux-system                   # Flux resources live in this namespace
 spec:
-  interval: 1m                # how often Flux checks for new commits
+  interval: 1m                             # how often Flux checks for new commits
   url: https://github.com/jmeegan2/data-portal.git
   ref:
-    branch: main
+    branch: main                           # only track the main branch

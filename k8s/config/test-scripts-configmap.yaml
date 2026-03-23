@@ -1,8 +1,9 @@
 apiVersion: v1
-kind: ConfigMap
+kind: ConfigMap                            # stores non-sensitive data as key-value pairs
 metadata:
-  name: test-scripts
+  name: test-scripts                       # referenced by rstudio and vscode deployments
 data:
+  # R script mounted into RStudio at /home/rstudio/test_db_connection.R
   test_db_connection.R: |
     library(DBI)
 
@@ -20,6 +21,7 @@ data:
 
     dbDisconnect(con)
 
+  # Python script mounted into VS Code at /config/test_db_connection.py
   test_db_connection.py: |
     import psycopg2, os
 

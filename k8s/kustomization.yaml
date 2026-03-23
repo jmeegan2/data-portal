@@ -1,20 +1,23 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
+apiVersion: kustomize.config.k8s.io/v1beta1  # Kustomize API (used by both kubectl and Flux)
+kind: Kustomization                          # defines how to assemble all the K8s manifests
 
+# ConfigMaps generated from literals and files — Kustomize auto-appends a hash suffix
+# so changes trigger pod restarts automatically.
 configMapGenerator:
-  - name: dart-db-config
+  - name: dart-db-config                     # DB connection details (non-sensitive)
     literals:
-      - DB_HOST=host.docker.internal
+      - DB_HOST=host.docker.internal         # TODO: replace with RDS endpoint in NGSC
       - DB_PORT=5551
       - DB_NAME=dart
       - DB_USER=dart
-  - name: nginx-config
+  - name: nginx-config                       # reverse proxy config (default.conf)
     files:
       - default.conf=nginx/default.conf
-  - name: portal-html
+  - name: portal-html                        # landing page HTML
     files:
       - index.html=nginx/index.html
 
+# All the manifests Kustomize should include
 resources:
   - config/dart-db-secret.yaml
   - config/test-scripts-configmap.yaml

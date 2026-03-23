@@ -1,14 +1,13 @@
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
+apiVersion: kustomize.toolkit.fluxcd.io/v1 # Flux Kustomize Controller API
+kind: Kustomization                        # tells Flux how to apply the manifests it pulled
 metadata:
   name: data-portal
   namespace: flux-system
 spec:
-  interval: 1m                # how often Flux re-applies
+  interval: 1m                             # how often Flux re-applies manifests
   sourceRef:
     kind: GitRepository
-    name: data-portal          # points to git-source.yaml
-  path: ./k8s                  # the folder in the repo with our kustomization.yaml
-  prune: true                  # removes resources from the cluster if you delete them from git
-  targetNamespace: data-portal  # dedicated namespace for the data portal
-
+    name: data-portal                      # points to git-source.yaml
+  path: ./k8s                              # folder in the repo containing kustomization.yaml
+  prune: true                              # delete resources from cluster if removed from git
+  targetNamespace: data-portal             # deploy everything into this namespace

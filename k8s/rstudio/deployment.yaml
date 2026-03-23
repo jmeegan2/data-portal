@@ -1,11 +1,11 @@
-apiVersion: apps/v1
+apiVersion: apps/v1                        # standard API for Deployments
 kind: Deployment
 metadata:
   name: rstudio
   labels:
     app: rstudio
 spec:
-  replicas: 1
+  replicas: 1                              # one RStudio instance
   selector:
     matchLabels:
       app: rstudio
@@ -15,7 +15,7 @@ spec:
         app: rstudio
     spec:
       securityContext:
-        runAsUser: 1000
+        runAsUser: 1000                    # UID 1000 = rstudio user in the rocker image
         runAsGroup: 1000
         runAsNonRoot: true
       containers:
@@ -23,7 +23,7 @@ spec:
           image: jmeegan607/data-portal-rstudio:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8787
+            - containerPort: 8787          # RStudio Server's default port
           # Skips rocker's /init entrypoint (requires root) and runs rserver directly.
           # Line 1: writes DB env vars into R's config so R sessions can read them.
           # Line 2: starts rserver as non-root with no auth (nginx handles auth).
@@ -35,31 +35,31 @@ spec:
               env | grep '^DB_' >> /usr/local/lib/R/etc/Renviron.site
               exec rserver --auth-none=1 --server-user=rstudio --server-daemonize=0
           env:
-            - name: USER
+            - name: USER                   # required by rocker base image
               value: rstudio
-            - name: PASSWORD
+            - name: PASSWORD               # required by rocker base image (unused since auth is off)
               value: rstudio
           envFrom:
             - configMapRef:
-                name: dart-db-config
+                name: dart-db-config       # DB_HOST, DB_PORT, DB_NAME, DB_USER
             - secretRef:
-                name: dart-db-secret
+                name: dart-db-secret       # DB_PASSWORD
           securityContext:
             allowPrivilegeEscalation: false
           volumeMounts:
-            - name: rstudio-data
+            - name: rstudio-data           # persistent storage for user files
               mountPath: /home/rstudio
-            - name: test-scripts
+            - name: test-scripts           # pre-loaded DB connection test script
               mountPath: /home/rstudio/test_db_connection.R
               subPath: test_db_connection.R
-            - name: run
+            - name: run                    # writable dir for rserver PID/socket files
               mountPath: /run
-            - name: var-lib-rstudio-server
+            - name: var-lib-rstudio-server # writable dir for SQLite session state
               mountPath: /var/lib/rstudio-server
-            - name: tmp
+            - name: tmp                    # writable dir for R temp files (Rtmp*)
               mountPath: /tmp
       volumes:
-        - name: rstudio-data
+        - name: rstudio-data               # persists across pod restarts
           persistentVolumeClaim:
             claimName: rstudio-pvc
         - name: test-scripts
