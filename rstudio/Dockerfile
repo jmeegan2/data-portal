@@ -4,6 +4,8 @@ RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y libpq-dev && \
     R -e "install.packages('RPostgres', repos='https://cloud.r-project.org')" && \
+    # linux-libc-dev ships with base image but is headers-only — purge to clear HIGH CVE
+    # --force-depends needed due to declared (not actual runtime) deps in base image
     dpkg --force-depends --purge linux-libc-dev && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
