@@ -27,6 +27,9 @@ resources:
   - rstudio/pvc.yaml
   - rstudio/deployment.yaml
   - rstudio/service.yaml
+  - rstudio copy/pvc.yaml
+  - rstudio copy/deployment.yaml
+  - rstudio copy/service.yaml
   - vscode/pvc.yaml
   - vscode/deployment.yaml
   - vscode/service.yaml

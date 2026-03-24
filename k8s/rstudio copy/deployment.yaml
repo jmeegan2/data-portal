@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rstudio-copy
+  labels:
+    app: rstudio-copy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rstudio-copy
+  template:
+    metadata:
+      labels:
+        app: rstudio-copy
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+      containers:
+        - name: rstudio-copy
+          image: jmeegan607/data-portal-rstudio:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8787
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              env | grep '^DB_' >> /usr/local/lib/R/etc/Renviron.site
+              exec rserver --auth-none=1 --server-user=rstudio --server-daemonize=0
+          env:
+            - name: USER
+              value: rstudio
+            - name: PASSWORD
+              value: rstudio
+          envFrom:
+            - configMapRef:
+                name: dart-db-config
+            - secretRef:
+                name: dart-db-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: rstudio-copy-data
+              mountPath: /home/rstudio
+            - name: run
+              mountPath: /run
+            - name: var-lib-rstudio-server
+              mountPath: /var/lib/rstudio-server
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: rstudio-copy-data
+          persistentVolumeClaim:
+            claimName: rstudio-copy-pvc
+        - name: run
+          emptyDir: {}
+        - name: var-lib-rstudio-server
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
